@@ -5,11 +5,10 @@ use std::{
 };
 use wgpu::{
     rwh::{HasDisplayHandle, HasWindowHandle},
-    Device, InstanceDescriptor, Operations, Queue, RenderPassColorAttachment, Surface, SurfaceConfiguration, SurfaceTexture,
-    TextureView,
+    Device, InstanceDescriptor, Operations, Queue, RenderPassColorAttachment, Surface,
+    SurfaceConfiguration, SurfaceTexture, TextureView,
 };
 use winit::dpi::PhysicalSize;
-
 
 // use crate::DrawCommand;
 
@@ -30,7 +29,7 @@ impl<W> Deref for Graphics<W> {
     fn deref(&self) -> &Self::Target {
         &self.window
     }
-} 
+}
 
 pub struct GraphicsOutput {
     output: SurfaceTexture,
@@ -82,7 +81,6 @@ where
             )
             .await?;
         surface.configure(&device, &config);
-
         // let font_handler = FontHandler::new(&window, &device, &queue, config.format);
 
         Ok(Graphics {
@@ -98,6 +96,7 @@ where
 
     fn output(&self) -> Option<GraphicsOutput> {
         let Ok(output) = self.surface.get_current_texture() else {
+            println!("No output available");
             self.surface.configure(&self.device, &self.config);
             return None;
         };
@@ -107,15 +106,15 @@ where
         Some(GraphicsOutput { output, view })
     }
 
-    pub fn resize(&mut self, size: PhysicalSize<u32>) {
-        if size.width == 0 || size.height == 0 {
-            return;
-        }
-        self.config.width = size.width;
-        self.config.height = size.height;
-        self.size = size;
-        self.surface.configure(&self.device, &self.config);
-    }
+    // pub fn resize(&mut self, size: PhysicalSize<u32>) {
+    //     if size.width == 0 || size.height == 0 {
+    //         return;
+    //     }
+    //     self.config.width = size.width;
+    //     self.config.height = size.height;
+    //     self.size = size;
+    //     self.surface.configure(&self.device, &self.config);
+    // }
 
     // pub fn render<'a>(&mut self, tbd: impl IntoIterator<Item: DrawCommand>) -> Result<()> {
     //     let mut encoder = self
@@ -151,7 +150,7 @@ where
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         let Some(output) = self.output() else {
             // bail!("No output available");
-            self.surface.configure(&self.device, &self.config);
+            println!("No output available");
             return self.render();
         };
         let pass = encoder
@@ -200,9 +199,10 @@ impl<W> DerefMut for GraphicsPass<'_, '_, W> {
 impl<W> GraphicsPass<'_, '_, W> {
     pub fn finish(mut self) {
         drop(self.pass);
-        self.graphics
-            .queue
-            .submit(self.encoder.take().map(|f| f.finish()));
+        let Some(encoder) = self.encoder.take() else {
+            return;
+        };
+        self.graphics.queue.submit(Some(encoder.finish()));
         if let Some(f) = self.output.take() {
             f.finish()
         }

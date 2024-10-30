@@ -5,60 +5,33 @@ use wgpu::{
     PipelineLayoutDescriptor, PrimitiveTopology, RenderPipeline, TextureFormat,
 };
 
-use crate::texture;
+use crate::{texture, Drag, Selection};
 
 #[repr(C)]
-#[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone)]
-struct Uniforms {
-    pub resolution: Vec2,
-    pub time: f32,
+#[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, Default, Debug)]
+pub struct SelectionUniforms {
+    screen_size: Vec2,
+    drag_start: Vec2,
+    drag_end: Vec2,
+    selection_start: Vec2,
+    selection_end: Vec2,
+    time: f32,
+    is_dragging: u32, // 0 = None, 1 = Dragging, 2 = Selected, 3 = Both
 }
 
-fn load_texture(
-    img: image::DynamicImage,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-) -> wgpu::Texture {
-    let rgba = img.to_rgba8();
-    let dimensions = img.dimensions();
-    let size = wgpu::Extent3d {
-        width: dimensions.0,
-        height: dimensions.1,
-        depth_or_array_layers: 1,
-    };
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
-        size,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8UnormSrgb,
-        usage: wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::TEXTURE_BINDING,
-        label: None,
-        view_formats: &[],
-    });
-    queue.write_texture(
-        wgpu::ImageCopyTexture {
-            texture: &texture,
-            mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
-            aspect: wgpu::TextureAspect::All,
-        },
-        &rgba,
-        wgpu::ImageDataLayout {
-            offset: 0,
-            bytes_per_row: Some(4 * dimensions.0),
-            rows_per_image: Some(dimensions.1),
-        },
-        size,
-    );
-    texture
+impl std::fmt::Display for SelectionUniforms {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "size: {:?}, is_dragging: {}, drag_start: {:?}, drag_end: {:?}, selection_start: {:?}, selection_end: {:?}, time: {}", 
+          self.screen_size, self.is_dragging, self.drag_start, self.drag_end, self.selection_start, self.selection_end, self.time)
+    }
 }
 
 pub struct GraphicsBundle {
     pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
+    texture_bind_group: wgpu::BindGroup,
+    uniform_bind_group: wgpu::BindGroup,
     texture: texture::Texture,
-    uniforms: Uniforms,
+    uniforms: SelectionUniforms,
     uniform_buffer: wgpu::Buffer,
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
@@ -85,30 +58,67 @@ impl GraphicsBundle {
         // });
         let texture = texture::Texture::from_image(device, queue, &img, None)
             .expect("Could not load texture");
-        let texture_bind_group_layout =
+        let (w, h) = img.dimensions();
+        let screen_size = Vec2::new(w as f32, h as f32);
+        let uniforms = SelectionUniforms {
+            screen_size,
+            is_dragging: 0,
+            drag_start: Vec2::ZERO,
+            drag_end: Vec2::ZERO,
+            selection_start: Vec2::ZERO,
+            selection_end: Vec2::ZERO,
+            time: 0.0,
+        };
+        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&[uniforms]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    // This should match the filterable field of the
+                    // corresponding Texture entry above.
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
+        let uniform_bind_group_layout =
             device.create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: None,
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        // This should match the filterable field of the
-                        // corresponding Texture entry above.
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
+                    count: None,
+                }],
             });
+        let uniform_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+            layout: &uniform_bind_group_layout,
+            label: None,
+        });
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             entries: &[
                 wgpu::BindGroupEntry {
@@ -120,17 +130,8 @@ impl GraphicsBundle {
                     resource: wgpu::BindingResource::Sampler(&texture.sampler),
                 },
             ],
-            layout: &texture_bind_group_layout,
+            layout: &bind_group_layout,
             label: None,
-        });
-        let uniforms = Uniforms {
-            resolution: Vec2::new(800., 600.),
-            time: 0.,
-        };
-        let uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&[uniforms]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
@@ -144,7 +145,7 @@ impl GraphicsBundle {
         });
         let layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[&texture_bind_group_layout],
+            bind_group_layouts: &[&bind_group_layout, &uniform_bind_group_layout],
             push_constant_ranges: &[],
         });
 
@@ -152,7 +153,8 @@ impl GraphicsBundle {
 
         Self {
             pipeline,
-            bind_group,
+            texture_bind_group: bind_group,
+            uniform_bind_group,
             texture,
             uniforms,
             uniform_buffer,
@@ -161,8 +163,47 @@ impl GraphicsBundle {
         }
     }
 
-    pub fn update_buffers(&mut self, time: f32, queue: &wgpu::Queue) {
+    pub fn update_selection(
+        &mut self,
+        time: f32,
+        queue: &wgpu::Queue,
+        drag: Option<&Drag>,
+        selection: Option<&Selection>,
+        size: Vec2,
+    ) {
         self.uniforms.time = time;
+        self.uniforms.screen_size = size;
+        self.uniforms.is_dragging = match (drag, selection) {
+            (Some(_), Some(_)) => 3,
+            (Some(_), None) => 1,
+            (None, Some(_)) => 2,
+            (None, None) => 0,
+        };
+
+        // if let Some(drag) = drag {
+        //     self.uniforms.selection_start = Vec2::new(drag.start.0 as f32, drag.start.1 as f32);
+        //     if let Some(end) = drag.end {
+        //         self.uniforms.selection_end = Vec2::new(end.0 as f32, end.1 as f32);
+        //     }
+        // } else if let Some(selection) = selection {
+        //     self.uniforms.selection_start =
+        //         Vec2::new(selection.start.0 as f32, selection.start.1 as f32);
+        //     self.uniforms.selection_end = Vec2::new(selection.end.0 as f32, selection.end.1 as f32);
+        // }
+        if let Some(drag) = drag {
+            self.uniforms.drag_start = Vec2::new(drag.start.0 as f32, drag.start.1 as f32);
+            if let Some(end) = drag.end {
+                self.uniforms.drag_end = Vec2::new(end.0 as f32, end.1 as f32);
+            }
+        }
+        if let Some(selection) = selection {
+            let ((min_x, min_y), (max_x, max_y)) = selection.coords();
+            self.uniforms.selection_start = Vec2::new(min_x as f32, min_y as f32);
+            self.uniforms.selection_end = Vec2::new(max_x as f32, max_y as f32);
+        }
+
+        // println!("{}", self.uniforms);
+
         queue.write_buffer(
             &self.uniform_buffer,
             0,
@@ -172,7 +213,8 @@ impl GraphicsBundle {
 
     pub fn draw(&self, pass: &mut wgpu::RenderPass<'_>) {
         pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(0, &self.bind_group, &[]);
+        pass.set_bind_group(0, &self.texture_bind_group, &[]);
+        pass.set_bind_group(1, &self.uniform_bind_group, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         // pass.set_vertex_buffer(1, self.uniform_buffer.slice(..));
