@@ -8,10 +8,10 @@ pub struct Vertex {
 }
 
 pub const QUAD: [Vertex; 4] = [
-    Vertex::from_x_y(-1.0, -1.0, 0.0, 0.0),  // Bottom left
-    Vertex::from_x_y(1.0, -1.0, 1.0, 0.0),   // Bottom right
-    Vertex::from_x_y(-1.0, 1.0, 0.0, 1.0),   // Top left
-    Vertex::from_x_y(1.0, 1.0, 1.0, 1.0),    // Top right
+    Vertex::from_x_y(-1.0, -1.0, 0.0, 1.0),  // Bottom left
+    Vertex::from_x_y(1.0, -1.0, 1.0, 1.0),   // Bottom right
+    Vertex::from_x_y(-1.0, 1.0, 0.0, 0.0),   // Top left
+    Vertex::from_x_y(1.0, 1.0, 1.0, 0.0),    // Top right
 ];
 pub const QUAD_INDICES: [u16; 4] = [0, 1, 2, 3];
 
