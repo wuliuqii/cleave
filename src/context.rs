@@ -1,17 +1,29 @@
-use std::sync::Arc;
-
 use anyhow::Context;
 use arboard::ImageData;
-use image::{ImageBuffer, Rgba};
-use pixels::{Pixels, SurfaceTexture};
+use image::{GenericImageView, ImageBuffer, Rgba};
+// use pixels::{Pixels, SurfaceTexture};
 use winit::{
     dpi::PhysicalSize,
     window::{Window, WindowAttributes},
 };
 
+use crate::{graphics_bundle::GraphicsBundle, graphics_impl::Graphics};
+
 struct Drag {
     start: (f64, f64),
     end: Option<(f64, f64)>,
+}
+
+impl Drag {
+    fn coords(&self) -> Option<((u32, u32), (u32, u32))> {
+        let end = self.end?;
+        let (start_x, start_y) = (self.start.0 as u32, self.start.1 as u32);
+        let (end_x, end_y) = (end.0 as u32, end.1 as u32);
+
+        let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
+        let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
+        Some(((min_x, min_y), (max_x, max_y)))
+    }
 }
 
 struct Selection {
@@ -19,13 +31,49 @@ struct Selection {
     end: (f64, f64),
 }
 
+impl Selection {
+    fn dimensions(&self) -> (f64, f64) {
+        let width = (self.end.0 - self.start.0).abs();
+        let height = (self.end.1 - self.start.1).abs();
+        (width, height)
+    }
+
+    fn area(&self) -> f64 {
+        let (width, height) = self.dimensions();
+        width * height
+    }
+
+    // fn aspect_ratio(&self) -> f64 {
+    //     let (width, height) = self.dimensions();
+    //     width / height
+    // }
+
+    // fn center(&self) -> (f64, f64) {
+    //     let x = (self.start.0 + self.end.0) / 2.0;
+    //     let y = (self.start.1 + self.end.1) / 2.0;
+    //     (x, y)
+    // }
+
+    fn coords(&self) -> ((u32, u32), (u32, u32)) {
+        let (start_x, start_y) = (self.start.0 as u32, self.start.1 as u32);
+        let (end_x, end_y) = (self.end.0 as u32, self.end.1 as u32);
+
+        let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
+        let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
+        ((min_x, min_y), (max_x, max_y))
+    }
+}
+
 pub struct AppContext {
     size: PhysicalSize<u32>,
     mouse_position: (f64, f64),
     current_drag: Option<Drag>,
     image: ImageBuffer<Rgba<u8>, Vec<u8>>,
-    pixels: Pixels<'static>,
-    window: Arc<Window>,
+    // pixels: Pixels<'static>,
+    total_time: f32,
+    last_frame: std::time::Instant,
+    graphics: Graphics<Window>,
+    bundle: GraphicsBundle,
     selection: Option<Selection>,
 }
 
@@ -62,20 +110,12 @@ impl AppContext {
         let Some(selection) = &self.selection else {
             return;
         };
-        let (start_x, start_y) = (selection.start.0 as u32, selection.start.1 as u32);
-        let (end_x, end_y) = (selection.end.0 as u32, selection.end.1 as u32);
 
-        let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
-        let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
+        let ((min_x, min_y), (max_x, max_y)) = selection.coords();
 
-        // Shave off a single pixel around the edge
-        // let min_x = min_x.saturating_add(1);
-        // let min_y = min_y.saturating_add(1);
-        // let max_x = max_x.saturating_sub(1);
-        // let max_y = max_y.saturating_sub(1);
-
-        let width = (max_x - min_x) as usize;
-        let height = (max_y - min_y) as usize;
+        let (width, height) = selection.dimensions();
+        let width = width as usize;
+        let height = height as usize;
 
         let mut image_data = Vec::new();
         for y in min_y..max_y {
@@ -86,7 +126,7 @@ impl AppContext {
         }
 
         let mut clipboard = arboard::Clipboard::new().unwrap();
-        if width * height != image_data.len() / 4 {
+        if selection.area() as usize != image_data.len() / 4 {
             eprintln!(
                 "Invalid selection size {:?} (w h p)",
                 (width, height, image_data.len() / 4)
@@ -108,84 +148,88 @@ impl AppContext {
             .with_context(|| "Could not get primary monitor")?;
         let image = monitor.capture_image()?;
         let size = PhysicalSize::new(monitor.width(), monitor.height());
-        let window = Arc::new(
-            event_loop.create_window(
-                WindowAttributes::default()
-                    .with_inner_size(size)
-                    .with_resizable(false)
-                    .with_decorations(false)
-                    .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None))),
-            )?,
+        let window = event_loop.create_window(
+            WindowAttributes::default()
+                .with_inner_size(size)
+                .with_resizable(false)
+                .with_decorations(false)
+                .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None))),
+        )?;
+
+        let graphics = Graphics::new(window, size);
+        let graphics = pollster::block_on(graphics)?;
+
+        let bundle = GraphicsBundle::new(
+            image.clone().into(),
+            &graphics.device,
+            &graphics.queue,
+            wgpu::PrimitiveTopology::TriangleStrip,
+            graphics.config.format,
         );
-        // let window = Arc::new(event_loop.create_window(WindowAttributes {
-        //     inner_size: Some(size.into()),
-        //     resizable: false,
-        //     decorations: false,
-        //     fullscreen: Some(winit::window::Fullscreen::Borderless(None)),
-        //     ..Default::default()
-        // })?);
-        let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
-        let pixels = Pixels::new(size.width, size.height, surface_texture)?;
+
+        // let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
+        // let pixels = Pixels::new(size.width, size.height, surface_texture)?;
 
         Ok(Self {
             size,
             image,
-            window,
+            bundle,
+            total_time: 0.0,
+            last_frame: std::time::Instant::now(),
             current_drag: None,
-            pixels,
+            // window,
+            graphics,
             mouse_position: (0.0, 0.0),
             selection: None,
         })
     }
 
     pub fn draw(&mut self) {
-        let frame = self.pixels.frame_mut();
-        frame.copy_from_slice(self.image.as_raw());
+        let time = self.last_frame.elapsed().as_secs_f32();
+        self.total_time += time;
+        self.last_frame = std::time::Instant::now();
+        self.bundle.update_buffers(self.total_time, &self.graphics.queue);
 
-        if let Some(drag) = &self.current_drag {
-            let start_x = drag.start.0 as u32;
-            let start_y = drag.start.1 as u32;
-            let end_x = drag.end.map_or(start_x, |end| end.0 as u32);
-            let end_y = drag.end.map_or(start_y, |end| end.1 as u32);
-
-            let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
-            let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
-
-            for y in min_y..=max_y {
-                for x in min_x..=max_x {
-                    let pixel = &mut frame[(y * self.size.width + x) as usize * 4..];
-                    pixel[0] = (pixel[0] as f32 * 0.5) as u8; // R
-                    pixel[1] = (pixel[1] as f32 * 0.5) as u8; // G
-                    pixel[2] = (pixel[2] as f32 * 0.5) as u8; // B
-                    pixel[3] = 255; // A
-                }
+        let mut pass = match self.graphics.render() {
+            Ok(pass) => pass,
+            Err(err) => {
+                eprintln!("Error rendering frame: {:?}", err);
+                return;
             }
-        }
-        if let Some(selection) = &self.selection {
-            let start_x = selection.start.0 as u32;
-            let start_y = selection.start.1 as u32;
-            let end_x = selection.end.0 as u32;
-            let end_y = selection.end.1 as u32;
+        };
 
-            let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
-            let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
+        self.bundle.draw(&mut pass);
+        pass.finish();
+        self.graphics.request_redraw();
+    }
 
-            // Draw selection rectangle outline
-            for x in min_x..=max_x {
-                let top_index = (min_y * self.size.width + x) as usize * 4;
-                let bottom_index = (max_y * self.size.width + x) as usize * 4;
-                frame[top_index..top_index + 4].copy_from_slice(&[255, 0, 0, 255]); // Red color
-                frame[bottom_index..bottom_index + 4].copy_from_slice(&[255, 0, 0, 255]);
-            }
-            for y in min_y..=max_y {
-                let left_index = (y * self.size.width + min_x) as usize * 4;
-                let right_index = (y * self.size.width + max_x) as usize * 4;
-                frame[left_index..left_index + 4].copy_from_slice(&[255, 0, 0, 255]);
-                frame[right_index..right_index + 4].copy_from_slice(&[255, 0, 0, 255]);
-            }
-        }
+    pub fn window_id(&self) -> winit::window::WindowId {
+        self.graphics.id()
+    }
+    
+    pub fn destroy(&self) {
+      self.graphics.window.set_minimized(true);
+    }
+}
 
-        self.pixels.render().unwrap();
-        self.window.request_redraw();
+fn draw_rectangle_outline(
+    img_width: u32,
+    min_x: u32,
+    min_y: u32,
+    max_x: u32,
+    max_y: u32,
+    frame: &mut [u8],
+) {
+    for x in min_x..=max_x {
+        let top_index = (min_y * img_width + x) as usize * 4;
+        let bottom_index = (max_y * img_width + x) as usize * 4;
+        frame[top_index..top_index + 4].copy_from_slice(&[255, 0, 0, 255]); // Red color
+        frame[bottom_index..bottom_index + 4].copy_from_slice(&[255, 0, 0, 255]);
+    }
+    for y in min_y..=max_y {
+        let left_index = (y * img_width + min_x) as usize * 4;
+        let right_index = (y * img_width + max_x) as usize * 4;
+        frame[left_index..left_index + 4].copy_from_slice(&[255, 0, 0, 255]);
+        frame[right_index..right_index + 4].copy_from_slice(&[255, 0, 0, 255]);
     }
 }

@@ -5,6 +5,11 @@ use winit::{
 };
 
 mod context;
+mod graphics_bundle;
+mod graphics_impl;
+mod instance;
+mod texture;
+mod vertex;
 use context::AppContext;
 
 struct App {
@@ -20,19 +25,20 @@ impl ApplicationHandler for App {
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
-        _: winit::window::WindowId,
+        id: winit::window::WindowId,
         event: winit::event::WindowEvent,
     ) {
         let Some(context) = &mut self.context else {
             return;
         };
-
-        if let WindowEvent::RedrawRequested = event {
-            context.draw();
+        if id != context.window_id() {
             return;
         }
 
         match event {
+            WindowEvent::RedrawRequested => {
+                context.draw();
+            }
             WindowEvent::CursorMoved { position, .. } => {
                 context.update_mouse_position(position);
             }
@@ -46,6 +52,7 @@ impl ApplicationHandler for App {
                 ..
             } => {
                 event_loop.exit();
+                context.destroy();
             }
             WindowEvent::KeyboardInput {
                 event:

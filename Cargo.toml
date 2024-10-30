@@ -6,8 +6,12 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.91"
 arboard = "3.4.1"
+bytemuck = { version = "1.19.0", features = ["derive"] }
+glam = { version = "0.29.1", features = ["bytemuck"] }
 image = "0.25.4"
-pixels = { git = "https://github.com/parasyte/pixels.git" }
+pollster = "0.4.0"
+# pixels = { git = "https://github.com/parasyte/pixels.git" }
 thiserror = "1.0.65"
-winit = { version = "0.30.5", features = ["rwh_05"] }
+wgpu = "22.1.0"
+winit = { version = "0.30.5", features = ["rwh_06"] }
 xcap = "0.0.14"
