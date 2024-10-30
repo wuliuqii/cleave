@@ -12,6 +12,6 @@ image = "0.25.4"
 pollster = "0.4.0"
 # pixels = { git = "https://github.com/parasyte/pixels.git" }
 thiserror = "1.0.65"
-wgpu = "22.1.0"
+wgpu = "23.0.0"
 winit = { version = "0.30.5", features = ["rwh_06"] }
 xcap = "0.0.14"
