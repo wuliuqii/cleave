@@ -12,60 +12,59 @@ mod texture;
 mod vertex;
 use context::AppContext;
 
-
 pub struct Drag {
-  start: (f64, f64),
-  end: Option<(f64, f64)>,
+    start: (f64, f64),
+    end: Option<(f64, f64)>,
 }
 
 impl Drag {
-  fn coords(&self) -> Option<((u32, u32), (u32, u32))> {
-      let end = self.end?;
-      let (start_x, start_y) = (self.start.0 as u32, self.start.1 as u32);
-      let (end_x, end_y) = (end.0 as u32, end.1 as u32);
+    fn coords(&self) -> Option<((u32, u32), (u32, u32))> {
+        let end = self.end?;
+        let (start_x, start_y) = (self.start.0 as u32, self.start.1 as u32);
+        let (end_x, end_y) = (end.0 as u32, end.1 as u32);
 
-      let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
-      let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
-      Some(((min_x, min_y), (max_x, max_y)))
-  }
+        let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
+        let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
+        Some(((min_x, min_y), (max_x, max_y)))
+    }
 }
 
 pub struct Selection {
-  start: (f64, f64),
-  end: (f64, f64),
+    start: (f64, f64),
+    end: (f64, f64),
 }
 
 impl Selection {
-  fn dimensions(&self) -> (f64, f64) {
-      let width = (self.end.0 - self.start.0).abs();
-      let height = (self.end.1 - self.start.1).abs();
-      (width, height)
-  }
+    fn dimensions(&self) -> (f64, f64) {
+        let width = (self.end.0 - self.start.0).abs();
+        let height = (self.end.1 - self.start.1).abs();
+        (width, height)
+    }
 
-  fn area(&self) -> f64 {
-      let (width, height) = self.dimensions();
-      width * height
-  }
+    fn area(&self) -> f64 {
+        let (width, height) = self.dimensions();
+        width * height
+    }
 
-  // fn aspect_ratio(&self) -> f64 {
-  //     let (width, height) = self.dimensions();
-  //     width / height
-  // }
+    // fn aspect_ratio(&self) -> f64 {
+    //     let (width, height) = self.dimensions();
+    //     width / height
+    // }
 
-  // fn center(&self) -> (f64, f64) {
-  //     let x = (self.start.0 + self.end.0) / 2.0;
-  //     let y = (self.start.1 + self.end.1) / 2.0;
-  //     (x, y)
-  // }
+    // fn center(&self) -> (f64, f64) {
+    //     let x = (self.start.0 + self.end.0) / 2.0;
+    //     let y = (self.start.1 + self.end.1) / 2.0;
+    //     (x, y)
+    // }
 
-  fn coords(&self) -> ((u32, u32), (u32, u32)) {
-      let (start_x, start_y) = (self.start.0 as u32, self.start.1 as u32);
-      let (end_x, end_y) = (self.end.0 as u32, self.end.1 as u32);
+    fn coords(&self) -> ((u32, u32), (u32, u32)) {
+        let (start_x, start_y) = (self.start.0 as u32, self.start.1 as u32);
+        let (end_x, end_y) = (self.end.0 as u32, self.end.1 as u32);
 
-      let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
-      let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
-      ((min_x, min_y), (max_x, max_y))
-  }
+        let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
+        let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
+        ((min_x, min_y), (max_x, max_y))
+    }
 }
 
 struct App {

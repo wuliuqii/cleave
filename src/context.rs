@@ -167,7 +167,7 @@ impl AppContext {
     pub fn destroy(&self) {
         self.graphics.window.set_minimized(true);
     }
-    
+
     pub fn hide_window(&self) {
         self.graphics.set_visible(false);
     }
