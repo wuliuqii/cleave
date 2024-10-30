@@ -27,7 +27,7 @@ Cleave is a lightweight, keyboard-driven screenshot tool written in Rust that en
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cleave
+git clone https://github.com/exotik850/cleave
 cd cleave
 
 # Build and install
