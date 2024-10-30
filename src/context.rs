@@ -153,7 +153,8 @@ impl AppContext {
                 .with_inner_size(size)
                 .with_resizable(false)
                 .with_decorations(false)
-                .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None))),
+                .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)))
+                .with_visible(false),
         )?;
 
         let graphics = Graphics::new(window, size);
@@ -166,6 +167,8 @@ impl AppContext {
             wgpu::PrimitiveTopology::TriangleStrip,
             graphics.config.format,
         );
+
+        graphics.window.set_visible(true);
 
         // let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
         // let pixels = Pixels::new(size.width, size.height, surface_texture)?;
