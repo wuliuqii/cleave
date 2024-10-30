@@ -1,0 +1,13 @@
+[package]
+name = "cleave"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.91"
+arboard = "3.4.1"
+image = "0.25.4"
+pixels = { git = "https://github.com/parasyte/pixels.git" }
+thiserror = "1.0.65"
+winit = { version = "0.30.5", features = ["rwh_05"] }
+xcap = "0.0.14"
