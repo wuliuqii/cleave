@@ -27,7 +27,7 @@ Cleave is a lightweight, GPU-accelerated screen capture tool that allows users t
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cleave.git
+git clone https://github.com/exotik850/cleave.git
 cd cleave
 
 # Build and install
