@@ -12,7 +12,7 @@ mod graphics_impl;
 mod instance;
 mod texture;
 mod vertex;
-use context::AppContext;
+use context::{AppContext, Direction, MoveMode};
 
 pub struct Drag {
     start: (f64, f64),
@@ -102,48 +102,53 @@ impl ApplicationHandler for App {
             WindowEvent::KeyboardInput {
                 event:
                     KeyEvent {
-                        state: ElementState::Pressed,
-                        logical_key: Key::Named(NamedKey::Escape),
+                        state,
+                        logical_key: key,
                         ..
                     },
                 ..
-            } => {
-                event_loop.exit();
-                context.destroy();
-            }
-            WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        state: ElementState::Pressed,
-                        logical_key: Key::Named(NamedKey::Space),
-                        ..
-                    },
-                ..
-            } => {
-                context.hide_window();
-                context.save_selection_to_clipboard();
-                event_loop.exit();
-            }
-            WindowEvent::MouseInput {
-                state: ElementState::Pressed,
-                button: MouseButton::Left,
-                ..
-            } => {
-                context.start_drag();
-            }
-            WindowEvent::MouseInput {
-                state: ElementState::Released,
-                button: MouseButton::Left,
-                ..
-            } => {
-                context.end_drag();
-            }
-            WindowEvent::MouseInput {
-                button: MouseButton::Right,
-                ..
-            } => {
-                context.cancel_drag();
-            }
+            } => match (state, key) {
+                (ElementState::Pressed, Key::Named(NamedKey::Escape)) => {
+                    event_loop.exit();
+                    context.destroy();
+                }
+                (ElementState::Pressed, Key::Named(NamedKey::Space)) => {
+                    context.hide_window();
+                    context.save_selection_to_clipboard();
+                    event_loop.exit();
+                }
+                (ElementState::Pressed, Key::Named(NamedKey::ArrowDown)) => {
+                    context.handle_move(Direction::Down);
+                }
+                (ElementState::Pressed, Key::Named(NamedKey::ArrowUp)) => {
+                    context.handle_move(Direction::Up);
+                }
+                (ElementState::Pressed, Key::Named(NamedKey::ArrowLeft)) => {
+                    context.handle_move(Direction::Left);
+                }
+                (ElementState::Pressed, Key::Named(NamedKey::ArrowRight)) => {
+                    context.handle_move(Direction::Right);
+                }
+                (ElementState::Pressed, Key::Named(NamedKey::Shift)) => {
+                    context.set_mode(MoveMode::InverseResize);
+                }
+                (ElementState::Released, Key::Named(NamedKey::Shift)) => {
+                    context.set_mode(MoveMode::Resize);
+                }
+                (ElementState::Pressed, Key::Named(NamedKey::Control)) => {
+                    context.set_mode(MoveMode::Move);
+                }
+                (ElementState::Released, Key::Named(NamedKey::Control)) => {
+                    context.set_mode(MoveMode::Resize);
+                }
+                _ => {}
+            },
+            WindowEvent::MouseInput { state, button, .. } => match (state, button) {
+                (ElementState::Pressed, MouseButton::Left) => context.start_drag(),
+                (ElementState::Released, MouseButton::Left) => context.end_drag(),
+                (_, MouseButton::Right) => context.cancel_drag(),
+                _ => {}
+            },
             WindowEvent::CloseRequested => {
                 event_loop.exit();
             }

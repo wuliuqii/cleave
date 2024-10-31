@@ -10,6 +10,19 @@ use winit::{
 
 use crate::{graphics_bundle::GraphicsBundle, graphics_impl::Graphics, Drag, Selection};
 
+pub enum MoveMode {
+    Move,          // Move the selection
+    InverseResize, // Make the selection smaller
+    Resize,        // Make the selection larger
+}
+
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
 pub struct AppContext {
     size: PhysicalSize<u32>,
     mouse_position: (f64, f64),
@@ -21,6 +34,7 @@ pub struct AppContext {
     graphics: Graphics<Window>,
     bundle: GraphicsBundle,
     selection: Option<Selection>,
+    mode: MoveMode,
 }
 
 impl AppContext {
@@ -133,7 +147,38 @@ impl AppContext {
             graphics,
             mouse_position: (0.0, 0.0),
             selection: None,
+            mode: MoveMode::Resize,
         })
+    }
+
+    pub fn handle_move(&mut self, dir: Direction) {
+        let Some(selection) = &mut self.selection else {
+            return;
+        };
+
+        let (dx, dy) = match dir {
+            Direction::Up => (0.0, -1.0),
+            Direction::Down => (0.0, 1.0),
+            Direction::Left => (-1.0, 0.0),
+            Direction::Right => (1.0, 0.0),
+        };
+
+        match self.mode {
+            MoveMode::Move => {
+                selection.start.0 = (selection.start.0 + dx).clamp(0.0, self.size.width as f64);
+                selection.start.1 = (selection.start.1 + dy).clamp(0.0, self.size.height as f64);
+                selection.end.0 = (selection.end.0 + dx).clamp(0.0, self.size.width as f64);
+                selection.end.1 = (selection.end.1 + dy).clamp(0.0, self.size.height as f64);
+            }
+            MoveMode::Resize => {
+                selection.end.0 = (selection.end.0 + dx).clamp(0.0, self.size.width as f64);
+                selection.end.1 = (selection.end.1 + dy).clamp(0.0, self.size.height as f64);
+            }
+            MoveMode::InverseResize => {
+                selection.start.0 = (selection.start.0 + dx).clamp(0.0, self.size.width as f64);
+                selection.start.1 = (selection.start.1 + dy).clamp(0.0, self.size.height as f64);
+            }
+        }
     }
 
     pub fn draw(&mut self) {
@@ -170,6 +215,10 @@ impl AppContext {
 
     pub fn hide_window(&self) {
         self.graphics.set_visible(false);
+    }
+
+    pub fn set_mode(&mut self, mode: MoveMode) {
+        self.mode = mode
     }
 }
 
