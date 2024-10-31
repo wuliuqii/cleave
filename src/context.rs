@@ -4,7 +4,8 @@ use glam::Vec2;
 use image::{GenericImageView, ImageBuffer, Rgba};
 // use pixels::{Pixels, SurfaceTexture};
 use winit::{
-    dpi::PhysicalSize, platform::windows::IconExtWindows, window::{Icon, Window, WindowAttributes}
+    dpi::PhysicalSize,
+    window::{Icon, Window, WindowAttributes},
 };
 
 use crate::{graphics_bundle::GraphicsBundle, graphics_impl::Graphics, Drag, Selection};
@@ -111,7 +112,7 @@ impl AppContext {
             .with_context(|| "Could not get primary monitor")?;
         let img = monitor.capture_image()?;
         let size = PhysicalSize::new(monitor.width(), monitor.height());
-        
+
         let icon_bytes = include_bytes!("../icon.png");
         let rgba = image::load_from_memory(icon_bytes)?.to_rgba8();
         let (width, height) = rgba.dimensions();
@@ -140,7 +141,9 @@ impl AppContext {
         );
 
         graphics.window.set_visible(true);
-        let _ = graphics.window.set_cursor_grab(winit::window::CursorGrabMode::Confined);
+        let _ = graphics
+            .window
+            .set_cursor_grab(winit::window::CursorGrabMode::Confined);
 
         // let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
         // let pixels = Pixels::new(size.width, size.height, surface_texture)?;
