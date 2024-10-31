@@ -119,6 +119,7 @@ impl AppContext {
         let window = event_loop.create_window(
             WindowAttributes::default()
                 .with_inner_size(size)
+                .with_title("Cleave")
                 .with_resizable(false)
                 .with_decorations(false)
                 .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)))
@@ -138,6 +139,7 @@ impl AppContext {
         );
 
         graphics.window.set_visible(true);
+        let _ = graphics.window.set_cursor_grab(winit::window::CursorGrabMode::Confined);
 
         // let surface_texture = SurfaceTexture::new(size.width, size.height, window.clone());
         // let pixels = Pixels::new(size.width, size.height, surface_texture)?;
