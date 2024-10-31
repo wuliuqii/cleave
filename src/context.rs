@@ -76,8 +76,9 @@ impl AppContext {
         let ((min_x, min_y), (max_x, max_y)) = selection.coords();
 
         let (width, height) = selection.dimensions();
-        let width = width as usize;
-        let height = height as usize;
+
+        let width = width.floor() as usize;
+        let height = height.floor() as usize;
 
         let mut image_data = Vec::new();
         for y in min_y..max_y {

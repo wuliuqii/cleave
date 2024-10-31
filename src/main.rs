@@ -60,12 +60,12 @@ impl Selection {
     // }
 
     fn coords(&self) -> ((u32, u32), (u32, u32)) {
-        let (start_x, start_y) = (self.start.0 as u32, self.start.1 as u32);
-        let (end_x, end_y) = (self.end.0 as u32, self.end.1 as u32);
+        let (start_x, start_y) = (self.start.0, self.start.1);
+        let (end_x, end_y) = (self.end.0, self.end.1);
 
-        let (min_x, max_x) = (start_x.min(end_x), start_x.max(end_x));
-        let (min_y, max_y) = (start_y.min(end_y), start_y.max(end_y));
-        ((min_x, min_y), (max_x, max_y))
+        let (min_x, max_x) = (start_x.min(end_x).ceil(), start_x.max(end_x).floor());
+        let (min_y, max_y) = (start_y.min(end_y).ceil(), start_y.max(end_y).floor());
+        ((min_x as u32, min_y as u32), (max_x as u32, max_y as u32))
     }
 }
 
