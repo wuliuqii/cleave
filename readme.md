@@ -5,6 +5,10 @@
 
 Cleave is a lightweight, GPU-accelerated screen capture tool that allows users to quickly select and copy portions of their screen. Built with Rust and WGPU, it offers smooth performance and minimal resource usage.
 
+## Showcase
+
+![Cleave Showcase](.github/assets/cleave_showcase.webp)
+
 ## Key Features
 
 - 🚀 GPU-accelerated rendering using WGPU
