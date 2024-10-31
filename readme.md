@@ -3,117 +3,124 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Rust](https://img.shields.io/badge/rust-stable-orange.svg)
 
-Cleave is a lightweight, keyboard-driven screenshot tool written in Rust that enables rapid screen capture and selection. It provides a clean, minimalist interface for capturing portions of your screen with pixel-perfect accuracy.
+Cleave is a lightweight, GPU-accelerated screen capture tool that allows users to quickly select and copy portions of their screen. Built with Rust and WGPU, it offers smooth performance and minimal resource usage.
 
-## ✨ Key Features
+## Key Features
 
-- **Full-screen Selection**: Click and drag to select any portion of your screen
-- **Keyboard Navigation**: Quick commands for capture and exit
-- **Instant Clipboard Integration**: Selected areas automatically copy to clipboard
-- **Visual Feedback**: Real-time visual indicators for selection area
-- **Multi-monitor Support**: Works with primary display
-- **Zero Configuration**: Works out of the box with sensible defaults
+- 🚀 GPU-accelerated rendering using WGPU
+- 🎯 Interactive screen region selection
+- ⌨️ Keyboard-driven controls for precise adjustments
+- 📋 Direct-to-clipboard copying
+- 🖼️ Support for high DPI displays
+- 🎨 Real-time visual feedback during selection
 
-## 🚀 Quick Start
+## Quick Start
 
 1. Launch Cleave
-2. Click and drag to select an area
-3. Press `Space` to capture and copy to clipboard
+2. Click and drag to select a screen region
+3. Press `Space` to copy the selection to clipboard
 4. Press `Esc` to cancel and exit
 
-## 📦 Installation
+## Installation
 
 ### From Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/exotik850/cleave
+git clone https://github.com/yourusername/cleave.git
 cd cleave
 
 # Build and install
 cargo install --path .
 ```
 
-## 🎮 Usage
+## Usage
 
-### Basic Controls
+### Keyboard Controls
 
-| Key/Action | Description |
-|------------|-------------|
-| Left Click + Drag | Select area |
-| Space | Capture selection to clipboard |
-| Escape | Exit application |
-| Right Click | Cancel current selection |
+| Key | Action |
+|-----|--------|
+| `Space` | Copy selection and exit |
+| `Esc` | Cancel and exit |
+| `Arrow Keys` | Fine-tune selection |
+| `Shift + Arrow Keys` | Adjust selection start point |
+| `Ctrl + Arrow Keys` | Move entire selection |
+| `Right Click` | Cancel current selection |
 
-### Command Line
+### Selection Modes
+
+Cleave offers three selection modes:
+
+1. **Resize Mode** (Default)
+   - Use arrow keys to adjust selection size
+   
+2. **Move Mode** (Hold Ctrl)
+   - Move entire selection without changing its size
+   
+3. **Inverse Resize Mode** (Hold Shift)
+   - Adjust selection from the starting point
+
+## Configuration
+
+Cleave uses sensible defaults and currently doesn't require configuration. Future versions may introduce a configuration file for customization.
+
+## Building from Source
+
+### Prerequisites
+
+- Rust 1.82 or higher
+- A GPU with Vulkan, Metal, or DirectX 12 support
+
+### Build Instructions
 
 ```bash
-# Launch Cleave
-cleave
+# Debug build
+cargo build
+
+# Release build
+cargo build --release
 ```
 
-## ⚙️ Configuration
+## Contributing
 
-Cleave is designed to work without configuration. Current default behaviors:
-
-- Captures from primary monitor
-- Saves directly to clipboard
-- Shows red border for selection area
-- Uses 50% opacity for selection overlay
-
-## 🔧 Technical Details
-
-Cleave is built with:
-- `winit` for window management
-- `pixels` for efficient rendering
-- `arboard` for clipboard operations
-- `xcap` for screen capture
-- `image` for image processing
-
-## 🤝 Contributing
-
-Contributions are welcome! Here's how you can help:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### Development Setup
 
-```bash
-# Install development dependencies
-cargo build
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-# Run tests
-cargo test
+### Code Style
 
-# Run with debug output
-cargo run
-```
+- Follow the Rust standard formatting guidelines
+- Use `cargo fmt` before committing
+- Ensure `cargo clippy` passes without warnings
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🐛 Known Issues
+## Technical Details
 
-- Currently only supports the primary monitor
-- Selection border is fixed to red color
-- No support for window-specific capture
+Cleave is built using:
 
-## 🎯 Roadmap
+- WGPU for GPU-accelerated rendering
+- Winit for window management and event handling
+- Image for image processing
+- Glam for vector mathematics
+- Arboard for clipboard operations
 
-- [ ] Multi-monitor support
-- [ ] Configurable border colors
-- [ ] Save to file option
-- [ ] Hotkey configuration
-- [ ] Window detection and snapping
+### System Requirements
 
-## 💡 Tips
+- OS: Windows, macOS, or Linux
+- GPU: Any GPU supporting Vulkan, Metal, or DirectX 12
+- Memory: Minimal (~50MB)
 
-- For pixel-perfect selection, use slower mouse movements
-- Right-click to cancel if you make a mistake
-- The selection border is one pixel wide for precision
+## Acknowledgments
 
+- The WGPU development team
+- The Rust community
+- Contributors and users who have provided feedback and suggestions
