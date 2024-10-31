@@ -1,4 +1,4 @@
-# Cleave
+<div style="display: flex; flex-direction: row; gap: 10px"> <h1>Cleave</h1> <img src="icon.svg" alt="Icon" width="54" height="54"> </div>
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Rust](https://img.shields.io/badge/rust-stable-orange.svg)

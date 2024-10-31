@@ -1,0 +1,45 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#1e1e2e" rx="64" />
+  
+  <!-- Selection Rectangle with Dashed Border -->
+  <rect 
+    x="128" 
+    y="128" 
+    width="256" 
+    height="256" 
+    fill="none" 
+    stroke="#89b4fa" 
+    stroke-width="16" 
+    stroke-dasharray="32 24"
+    rx="16" 
+  />
+  
+  <!-- Corner Markers -->
+  <g fill="#cba6f7">
+    <!-- Top Left -->
+    <rect x="96" y="96" width="64" height="16" rx="8" />
+    <rect x="96" y="96" width="16" height="64" rx="8" />
+    
+    <!-- Top Right -->
+    <rect x="352" y="96" width="64" height="16" rx="8" />
+    <rect x="400" y="96" width="16" height="64" rx="8" />
+    
+    <!-- Bottom Left -->
+    <rect x="96" y="400" width="16" height="64" rx="8" />
+    <rect x="96" y="400" width="64" height="16" rx="8" />
+    
+    <!-- Bottom Right -->
+    <rect x="352" y="400" width="64" height="16" rx="8" />
+    <rect x="400" y="352" width="16" height="64" rx="8" />
+  </g>
+  
+  <!-- Center Cut Line -->
+  <path 
+    d="M 256,96 V 416" 
+    stroke="#f38ba8" 
+    stroke-width="8" 
+    stroke-linecap="round"
+    stroke-dasharray="16 16"
+  />
+</svg>

@@ -4,8 +4,7 @@ use glam::Vec2;
 use image::{GenericImageView, ImageBuffer, Rgba};
 // use pixels::{Pixels, SurfaceTexture};
 use winit::{
-    dpi::PhysicalSize,
-    window::{Window, WindowAttributes},
+    dpi::PhysicalSize, platform::windows::IconExtWindows, window::{Icon, Window, WindowAttributes}
 };
 
 use crate::{graphics_bundle::GraphicsBundle, graphics_impl::Graphics, Drag, Selection};
@@ -109,22 +108,29 @@ impl AppContext {
             .into_iter()
             .find(|m| m.is_primary())
             .with_context(|| "Could not get primary monitor")?;
-        let image = monitor.capture_image()?;
+        let img = monitor.capture_image()?;
         let size = PhysicalSize::new(monitor.width(), monitor.height());
+        
+        let icon_bytes = include_bytes!("../icon.png");
+        let rgba = image::load_from_memory(icon_bytes)?.to_rgba8();
+        let (width, height) = rgba.dimensions();
+        let rgba = rgba.into_raw();
+
         let window = event_loop.create_window(
             WindowAttributes::default()
                 .with_inner_size(size)
                 .with_resizable(false)
                 .with_decorations(false)
                 .with_fullscreen(Some(winit::window::Fullscreen::Borderless(None)))
-                .with_visible(false),
+                .with_visible(false)
+                .with_window_icon(Some(Icon::from_rgba(rgba, width, height)?)),
         )?;
 
         let graphics = Graphics::new(window, size);
         let graphics = pollster::block_on(graphics)?;
 
         let bundle = GraphicsBundle::new(
-            image.clone().into(),
+            img.clone().into(),
             &graphics.device,
             &graphics.queue,
             wgpu::PrimitiveTopology::TriangleStrip,
@@ -138,7 +144,7 @@ impl AppContext {
 
         Ok(Self {
             size,
-            image,
+            image: img,
             bundle,
             total_time: 0.0,
             last_frame: std::time::Instant::now(),
