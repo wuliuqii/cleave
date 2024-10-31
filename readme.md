@@ -37,6 +37,29 @@ cd cleave
 # Build and install
 cargo install --path .
 ```
+### Linux System Requirements
+
+On Linux, you need to install `libxcb`, `libxrandr`, and `dbus`.
+
+##### Debian/Ubuntu:
+
+```
+apt-get install libxcb1 libxrandr2 libdbus-1-3
+```
+
+##### Alpine:
+
+```
+apk add libxcb libxrandr dbus
+```
+
+##### ArchLinux:
+
+```
+pacman -S libxcb libxrandr dbus
+```
+
+for more details on linux compatibility, [see here](https://github.com/nashaofu/xcap?tab=readme-ov-file#linux-system-requirements)
 
 ## Usage
 
@@ -116,6 +139,7 @@ Cleave is built using:
 - Image for image processing
 - Glam for vector mathematics
 - Arboard for clipboard operations
+- Xcap for Screen Capture
 
 ### System Requirements
 
