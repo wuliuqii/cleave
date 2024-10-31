@@ -32,31 +32,49 @@ fn vs_main(model: VertexInput) -> VertexOutput {
     return out;
 }
 
+// Add this helper function for generating rainbow colors
+fn rainbow(t: f32) -> vec4<f32> {
+    let r = sin(t) * 0.5 + 0.5;
+    let g = sin(t + 2.094) * 0.5 + 0.5; // 2.094 = 2π/3
+    let b = sin(t + 4.189) * 0.5 + 0.5; // 4.189 = 4π/3
+    return vec4<f32>(r, g, b, 0.8);
+}
+
+// Modified fragment shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Get the base texture color
     var color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    
-    // Convert texture coordinates to screen coordinates
     let screen_pos = in.tex_coords * uniforms.screen_size;
     
-    // Draw drag rectangle
-    if (uniforms.is_dragging == 1u || uniforms.is_dragging == 3u) && 
-       point_in_rectangle(screen_pos, uniforms.drag_start, uniforms.drag_end) {
-        color = mix(color, vec4<f32>(0.5, 0.5, 1.0, 1.0), 0.3);
+    // Draw drag rectangle with subtle highlight
+    if (uniforms.is_dragging == 1u || uniforms.is_dragging == 3u) && point_in_rectangle(screen_pos, uniforms.drag_start, uniforms.drag_end) {
+        color = mix(color, vec4<f32>(0.5, 0.5, 1.0, 1.0), 0.2);
     }
     
-    // Draw selection border
-    if uniforms.is_dragging >= 2u && 
-       is_on_border(screen_pos, uniforms.selection_start, uniforms.selection_end, 2.0) {
-        color = vec4<f32>(1.0, 1.0, 1.0, 0.8);
+    // Draw animated selection border
+    if uniforms.is_dragging >= 2u {
+        // Create outer and inner borders for depth effect
+        let outer_border = is_on_border(screen_pos, uniforms.selection_start, uniforms.selection_end, 2.0);
+        let inner_border = is_on_border(screen_pos, uniforms.selection_start, uniforms.selection_end, 1.0);
+        
+        if outer_border {
+            // Animated rainbow border with alpha blend
+            let border_color = rainbow(uniforms.time * 2.0);
+            let glow = 0.8;
+            color = mix(color, border_color, glow);
+        }
+        if inner_border {
+            // Brighter inner highlight
+            let highlight_color = rainbow(uniforms.time * 2.0 + 0.5);
+            color = mix(color, vec4<f32>(highlight_color.rgb, 1.0), 0.9);
+        }
     }
-    
+
     return color;
 }
 
 fn point_in_rectangle(point: vec2<f32>, start: vec2<f32>, end: vec2<f32>) -> bool {
-    if (start.x == 0 && start.y == 0 || end.x == 0 && end.y == 0) {
+    if start.x == 0 && start.y == 0 || end.x == 0 && end.y == 0 {
         return false;
     }
     let min_pos = min(start, end);
@@ -67,18 +85,36 @@ fn point_in_rectangle(point: vec2<f32>, start: vec2<f32>, end: vec2<f32>) -> boo
 fn is_on_border(point: vec2<f32>, start: vec2<f32>, end: vec2<f32>, thickness: f32) -> bool {
     let min_pos = min(start, end);
     let max_pos = max(start, end);
-    
-    let outer = point_in_rectangle(
-        point, 
+
+    let outer = point_in_rounded_rectangle(
+        point,
         min_pos - vec2<f32>(thickness),
-        max_pos + vec2<f32>(thickness)
+        max_pos + vec2<f32>(thickness),
+        thickness
     );
-    
-    let inner = point_in_rectangle(
+
+    let inner = point_in_rounded_rectangle(
         point,
         min_pos + vec2<f32>(thickness),
-        max_pos - vec2<f32>(thickness)
+        max_pos - vec2<f32>(thickness),
+        thickness
     );
-    
+
     return outer && !inner;
+}
+
+fn point_in_rounded_rectangle(point: vec2<f32>, start: vec2<f32>, end: vec2<f32>, radius: f32) -> bool {
+    let min_pos = min(start, end);
+    let max_pos = max(start, end);
+
+    let rounded_min = min_pos + vec2<f32>(radius);
+    let rounded_max = max_pos - vec2<f32>(radius);
+
+    let inside_rect = all(point >= rounded_min) && all(point <= rounded_max);
+
+    let corner_radius = vec2<f32>(radius);
+    let corner_distance = max(vec2<f32>(0.0), abs(point - (min_pos + max_pos) * 0.5) - corner_radius);
+    let inside_rounded = all(corner_distance <= corner_radius);
+
+    return inside_rect || inside_rounded;
 }
