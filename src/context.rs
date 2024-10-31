@@ -90,7 +90,7 @@ impl AppContext {
         }
 
         let mut clipboard = arboard::Clipboard::new().unwrap();
-        if selection.area() as usize != image_data.len() / 4 {
+        if width * height != image_data.len() / 4 {
             eprintln!(
                 "Invalid selection size {:?} (w h p)",
                 (width, height, image_data.len() / 4)
