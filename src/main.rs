@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use winit::{
     application::ApplicationHandler,
     event::{ElementState, KeyEvent, MouseButton, WindowEvent},
