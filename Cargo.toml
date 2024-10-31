@@ -15,3 +15,10 @@ thiserror = "1.0.65"
 wgpu = "23.0.0"
 winit = { version = "0.30.5", features = ["rwh_06"] }
 xcap = "0.0.14"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+
+[build]
+rustflags = ["-C", "target-cpu=native"]
