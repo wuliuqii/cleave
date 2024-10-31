@@ -121,7 +121,7 @@ Cleave is built using:
 
 - OS: Windows, macOS, or Linux
 - GPU: Any GPU supporting Vulkan, Metal, or DirectX 12
-- Memory: Minimal (~150MB)
+- Memory: Minimal (~150-200MB) (WIP!!)
 
 ## Acknowledgments
 
