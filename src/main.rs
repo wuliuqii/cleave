@@ -9,7 +9,6 @@ use winit::{
 mod context;
 mod graphics_bundle;
 mod graphics_impl;
-mod instance;
 mod texture;
 mod vertex;
 use context::{AppContext, Direction, MoveMode};

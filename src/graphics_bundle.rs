@@ -191,15 +191,21 @@ impl GraphicsBundle {
         //     self.uniforms.selection_end = Vec2::new(selection.end.0 as f32, selection.end.1 as f32);
         // }
         if let Some(drag) = drag {
-            self.uniforms.drag_start = Vec2::new(drag.start.0 as f32, drag.start.1 as f32);
             if let Some(end) = drag.end {
+                self.uniforms.drag_start = Vec2::new(drag.start.0 as f32, drag.start.1 as f32);
                 self.uniforms.drag_end = Vec2::new(end.0 as f32, end.1 as f32);
             }
+        } else {
+            self.uniforms.drag_start = Vec2::ZERO;
+            self.uniforms.drag_end = Vec2::ZERO;
         }
         if let Some(selection) = selection {
             let ((min_x, min_y), (max_x, max_y)) = selection.coords();
             self.uniforms.selection_start = Vec2::new(min_x as f32, min_y as f32);
             self.uniforms.selection_end = Vec2::new(max_x as f32, max_y as f32);
+        } else {
+            self.uniforms.selection_start = Vec2::ZERO;
+            self.uniforms.selection_end = Vec2::ZERO;
         }
 
         // println!("{}", self.uniforms);

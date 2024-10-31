@@ -49,6 +49,7 @@ impl AppContext {
     }
 
     pub fn end_drag(&mut self) {
+        self.selection = None;
         if let Some(drag) = self.current_drag.take() {
             self.selection = Some(Selection {
                 start: drag.start,
@@ -231,27 +232,5 @@ impl AppContext {
 
     pub fn set_mode(&mut self, mode: MoveMode) {
         self.mode = mode
-    }
-}
-
-fn draw_rectangle_outline(
-    img_width: u32,
-    min_x: u32,
-    min_y: u32,
-    max_x: u32,
-    max_y: u32,
-    frame: &mut [u8],
-) {
-    for x in min_x..=max_x {
-        let top_index = (min_y * img_width + x) as usize * 4;
-        let bottom_index = (max_y * img_width + x) as usize * 4;
-        frame[top_index..top_index + 4].copy_from_slice(&[255, 0, 0, 255]); // Red color
-        frame[bottom_index..bottom_index + 4].copy_from_slice(&[255, 0, 0, 255]);
-    }
-    for y in min_y..=max_y {
-        let left_index = (y * img_width + min_x) as usize * 4;
-        let right_index = (y * img_width + max_x) as usize * 4;
-        frame[left_index..left_index + 4].copy_from_slice(&[255, 0, 0, 255]);
-        frame[right_index..right_index + 4].copy_from_slice(&[255, 0, 0, 255]);
     }
 }
