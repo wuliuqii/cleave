@@ -40,81 +40,78 @@ fn rainbow(t: f32) -> vec4<f32> {
     return vec4<f32>(r, g, b, 0.8);
 }
 
-// Modified fragment shader
+
+fn is_in_selection(coord: vec2<f32>) -> bool {
+    let min_pos = min(uniforms.selection_start, uniforms.selection_end);
+    let max_pos = max(uniforms.selection_start, uniforms.selection_end);
+    return coord.x >= min_pos.x && coord.x <= max_pos.x && 
+           coord.y >= min_pos.y && coord.y <= max_pos.y;
+}
+
+fn is_in_drag(coord: vec2<f32>) -> bool {
+    let min_pos = min(uniforms.drag_start, uniforms.drag_end);
+    let max_pos = max(uniforms.drag_start, uniforms.drag_end);
+    return coord.x >= min_pos.x && coord.x <= max_pos.x && 
+           coord.y >= min_pos.y && coord.y <= max_pos.y;
+}
+
+fn is_on_border(coord: vec2<f32>, region_start: vec2<f32>, region_end: vec2<f32>, thickness: f32) -> bool {
+  let min_pos = min(region_start, region_end);
+  let max_pos = max(region_start, region_end);
+  
+  // Check if near any of the four borders with dashed pattern
+  let border_x = abs(coord.x - min_pos.x) < thickness || abs(coord.x - max_pos.x) < thickness;
+  let border_y = abs(coord.y - min_pos.y) < thickness || abs(coord.y - max_pos.y) < thickness;
+  
+  if border_x || border_y {
+    // Create dashed effect
+    let dash_length = 10.0;
+    let animation_speed = 20.0; // Change this variable to adjust the speed of the animation
+    var pos: f32;
+    if border_x {
+      pos = coord.y + uniforms.time * animation_speed;
+    } else {
+      pos = coord.x + uniforms.time * animation_speed;
+    }
+    let dash_pattern = floor(pos / dash_length) % 2.0;
+    return dash_pattern < 1.0;
+  }
+  
+  return false;
+}
+
+fn get_stripe_pattern(coord: vec2<f32>) -> bool {
+  let stripe_width = 10.0;  // Width of each stripe
+  let stripe_spacing = 25.0; // Space between each stripe
+  let animation_speed = 20.0; // Change this variable to adjust the speed of the animation
+  let pos = (coord.x + coord.y + uniforms.time * animation_speed) / (stripe_width + stripe_spacing);
+  return fract(pos) < (stripe_width / (stripe_width + stripe_spacing));
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    var color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    let screen_pos = in.tex_coords * uniforms.screen_size;
+    let coord = in.tex_coords * uniforms.screen_size;
+    let tex = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     
-    // Draw drag rectangle with subtle highlight
-    if (uniforms.is_dragging == 1u || uniforms.is_dragging == 3u) && point_in_rectangle(screen_pos, uniforms.drag_start, uniforms.drag_end) {
-        color = mix(color, vec4<f32>(0.5, 0.5, 1.0, 1.0), 0.2);
+    var color = tex;
+    let border_thickness = 2.0;
+    
+    if (uniforms.is_dragging == 1u || uniforms.is_dragging == 3u) && is_in_drag(coord) {
+        if is_on_border(coord, uniforms.drag_start, uniforms.drag_end, border_thickness) {
+            color = vec4<f32>(0.0, 0.5, 1.0, 1.0);  // Blue border
+        }
+        //  else if get_stripe_pattern(coord) {
+        //     color = mix(color, vec4<f32>(0.0, 0.5, 1.0, 0.3), 0.3);  // Semi-transparent blue stripes
+        // }
     }
     
-    // Draw animated selection border
-    if uniforms.is_dragging >= 2u {
-        // Create outer and inner borders for depth effect
-        let outer_border = is_on_border(screen_pos, uniforms.selection_start, uniforms.selection_end, 2.0);
-        let inner_border = is_on_border(screen_pos, uniforms.selection_start, uniforms.selection_end, 1.0);
-        
-        if outer_border {
-            // Animated rainbow border with alpha blend
-            let border_color = rainbow(uniforms.time * 2.0);
-            let glow = 0.8;
-            color = mix(color, border_color, glow);
-        }
-        if inner_border {
-            // Brighter inner highlight
-            let highlight_color = rainbow(uniforms.time * 2.0 + 0.5);
-            color = mix(color, vec4<f32>(highlight_color.rgb, 1.0), 0.9);
+    if (uniforms.is_dragging == 2u || uniforms.is_dragging == 3u) && is_in_selection(coord) {
+        if is_on_border(coord, uniforms.selection_start, uniforms.selection_end, border_thickness) {
+            color = mix(color, vec4<f32>(0.0, 1.0, 0.0, 1.0), 0.5);  // Green border
+        } else if get_stripe_pattern(coord) {
+            color = mix(color, vec4<f32>(0.0, 0.5, 1.0, 0.3), 0.1);  // Semi-transparent blue stripes
         }
     }
-
+    
     return color;
-}
-
-fn point_in_rectangle(point: vec2<f32>, start: vec2<f32>, end: vec2<f32>) -> bool {
-    if start.x == 0 && start.y == 0 || end.x == 0 && end.y == 0 {
-        return false;
-    }
-    let min_pos = min(start, end);
-    let max_pos = max(start, end);
-    return all(point >= min_pos) && all(point <= max_pos);
-}
-
-fn is_on_border(point: vec2<f32>, start: vec2<f32>, end: vec2<f32>, thickness: f32) -> bool {
-    let min_pos = min(start, end);
-    let max_pos = max(start, end);
-
-    let outer = point_in_rounded_rectangle(
-        point,
-        min_pos - vec2<f32>(thickness),
-        max_pos + vec2<f32>(thickness),
-        thickness
-    );
-
-    let inner = point_in_rounded_rectangle(
-        point,
-        min_pos + vec2<f32>(thickness),
-        max_pos - vec2<f32>(thickness),
-        thickness
-    );
-
-    return outer && !inner;
-}
-
-fn point_in_rounded_rectangle(point: vec2<f32>, start: vec2<f32>, end: vec2<f32>, radius: f32) -> bool {
-    let min_pos = min(start, end);
-    let max_pos = max(start, end);
-
-    let rounded_min = min_pos + vec2<f32>(radius);
-    let rounded_max = max_pos - vec2<f32>(radius);
-
-    let inside_rect = all(point >= rounded_min) && all(point <= rounded_max);
-
-    let corner_radius = vec2<f32>(radius);
-    let corner_distance = max(vec2<f32>(0.0), abs(point - (min_pos + max_pos) * 0.5) - corner_radius);
-    let inside_rounded = all(corner_distance <= corner_radius);
-
-    return inside_rect || inside_rounded;
 }
