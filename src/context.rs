@@ -134,13 +134,10 @@ impl AppContext {
 
     fn get_selection_data(&self) -> Option<Vec<u8>> {
         let ((min_x, min_y), (max_x, max_y)) = self.selection.sel_coords()?;
-        let mut image_data = Vec::new();
-        for y in min_y..max_y {
-            let row_start = (y * self.size.width + min_x) as usize * 4;
-            let row_end = (y * self.size.width + max_x) as usize * 4;
-            let row = &self.image.as_raw()[row_start..row_end];
-            image_data.extend_from_slice(row);
-        }
+        let img = self
+            .image
+            .view(min_x, min_y, max_x.abs_diff(min_x), max_y.abs_diff(min_y));
+        let image_data = img.to_image().to_vec();
         Some(image_data)
     }
 
