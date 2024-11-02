@@ -1,0 +1,12 @@
+[package]
+name = "cleave-graphics"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+glam = { workspace = true }
+image = { workspace = true }
+wgpu = { workspace = true }
+bytemuck = { workspace = true }
+winit = { workspace = true }
+thiserror = "1"
