@@ -3,15 +3,30 @@ name = "cleave"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = ["cleave-graphics"]
+
+
 [dependencies]
-anyhow = "1.0.91"
+bytemuck = { workspace = true }
+glam = { workspace = true }
+winit = { workspace = true }
+anyhow = { workspace = true }
+arboard = { workspace = true }
+image = { workspace = true }
+pollster = { workspace = true }
+wgpu = { workspace = true }
+xcap = { workspace = true }
+cleave-graphics = { path = "cleave-graphics" }
+
+
+[workspace.dependencies]
+anyhow = "1"
 arboard = "3.4.1"
 bytemuck = { version = "1.19.0", features = ["derive"] }
 glam = { version = "0.29.1", features = ["bytemuck"] }
 image = "0.25.4"
 pollster = "0.4.0"
-# pixels = { git = "https://github.com/parasyte/pixels.git" }
-thiserror = "1.0.65"
 wgpu = "23.0.0"
 winit = { version = "0.30.5", features = ["rwh_06"] }
 xcap = "0.0.14"

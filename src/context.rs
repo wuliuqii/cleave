@@ -1,6 +1,6 @@
 use anyhow::Context;
 use arboard::ImageData;
-use glam::Vec2;
+use glam::{DVec2, Vec2};
 use image::{GenericImageView, ImageBuffer, Rgba};
 // use pixels::{Pixels, SurfaceTexture};
 use winit::{
@@ -8,7 +8,8 @@ use winit::{
     window::{Icon, Window, WindowAttributes},
 };
 
-use crate::{graphics_bundle::GraphicsBundle, graphics_impl::Graphics, Drag, Selection};
+// use crate::{graphics_bundle::GraphicsBundle, graphics_impl::Graphics};
+use cleave_graphics::prelude::*;
 
 pub enum MoveMode {
     Move,          // Move the selection
@@ -23,65 +24,116 @@ pub enum Direction {
     Right,
 }
 
+#[repr(C)]
+#[derive(bytemuck::Pod, bytemuck::Zeroable, Copy, Clone, Default, Debug)]
+pub struct SelectionUniforms {
+    screen_size: Vec2,
+    drag_start: Vec2,
+    drag_end: Vec2,
+    selection_start: Vec2,
+    selection_end: Vec2,
+    time: f32,
+    is_dragging: u32, // 0 = None, 1 = Dragging, 2 = Selected, 3 = Both
+}
+
+impl std::fmt::Display for SelectionUniforms {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "size: {:?}, is_dragging: {}, drag_start: {:?}, drag_end: {:?}, selection_start: {:?}, selection_end: {:?}, time: {}", 
+          self.screen_size, self.is_dragging, self.drag_start, self.drag_end, self.selection_start, self.selection_end, self.time)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Drag {
+    start: Vec2,
+    end: Option<Vec2>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct Selection {
+    start: Vec2,
+    end: Vec2,
+}
+
+pub struct UserSelection {
+    drag: Option<Drag>,
+    selection: Option<Selection>,
+}
+
+impl UserSelection {
+    fn new() -> Self {
+        Self {
+            drag: None,
+            selection: None,
+        }
+    }
+
+    fn sel_coords(&self) -> Option<((u32, u32), (u32, u32))> {
+        let selection = self.selection.as_ref()?;
+        let (start_x, start_y) = (selection.start.x, selection.start.y);
+        let (end_x, end_y) = (selection.end.x, selection.end.y);
+
+        let (min_x, max_x) = (start_x.min(end_x).ceil(), start_x.max(end_x).floor());
+        let (min_y, max_y) = (start_y.min(end_y).ceil(), start_y.max(end_y).floor());
+        Some(((min_x as u32, min_y as u32), (max_x as u32, max_y as u32)))
+    }
+
+    fn sel_dimensions(&self) -> Option<(f32, f32)> {
+        let selection = self.selection.as_ref()?;
+        let width = (selection.end.x - selection.start.x).abs();
+        let height = (selection.end.y - selection.start.y).abs();
+        Some((width, height))
+    }
+
+    // fn get_
+}
+
 pub struct AppContext {
     size: PhysicalSize<u32>,
-    mouse_position: (f64, f64),
-    current_drag: Option<Drag>,
+    mouse_position: DVec2,
+    selection: UserSelection,
+    // current_drag: Option<Drag>,
+    // selection: Option<Selection>,
     image: ImageBuffer<Rgba<u8>, Vec<u8>>,
     // pixels: Pixels<'static>,
     total_time: f32,
     last_frame: std::time::Instant,
     graphics: Graphics<Window>,
-    bundle: GraphicsBundle,
-    selection: Option<Selection>,
+    bundle: GraphicsBundle<SelectionUniforms>,
     mode: MoveMode,
 }
 
 impl AppContext {
     pub fn start_drag(&mut self) {
-        if self.current_drag.is_some() {
-            return;
-        }
-        self.current_drag = Some(Drag {
-            start: self.mouse_position,
-            end: None,
+        if let Some(drag) = self.selection.drag.as_mut() {
+            if drag.start != Vec2::ZERO {
+                return;
+            }
+        };
+        self.selection.drag = Some(Drag {
+            start: self.mouse_position.as_vec2(),
+            end: Some(self.mouse_position.as_vec2()),
         });
     }
 
     pub fn end_drag(&mut self) {
-        self.selection = None;
-        if let Some(drag) = self.current_drag.take() {
-            self.selection = Some(Selection {
+        self.selection.selection = None;
+        if let Some(drag) = self.selection.drag.take() {
+            let end_pos = drag.end.unwrap_or(drag.start); // Use end if set, otherwise use start
+            self.selection.selection = Some(Selection {
                 start: drag.start,
-                end: self.mouse_position,
+                end: end_pos,
             });
         }
     }
 
     pub fn cancel_drag(&mut self) {
-        self.current_drag = None;
-        self.selection = None;
+        self.selection.drag = None;
+        self.selection.selection = None;
     }
 
-    pub fn update_mouse_position(&mut self, position: winit::dpi::PhysicalPosition<f64>) {
-        self.mouse_position = (position.x, position.y);
-        if let Some(drag) = &mut self.current_drag {
-            drag.end = Some(self.mouse_position);
-        }
-    }
-
-    pub fn save_selection_to_clipboard(&self) {
-        let Some(selection) = &self.selection else {
-            return;
-        };
-
-        let ((min_x, min_y), (max_x, max_y)) = selection.coords();
-
-        let (width, height) = selection.dimensions();
-
-        let width = width.floor() as usize;
-        let height = height.floor() as usize;
-
+    fn get_selection_data(&self) -> Option<Vec<u8>> {
+        let ((min_x, min_y), (max_x, max_y)) = self.selection.sel_coords()?;
         let mut image_data = Vec::new();
         for y in min_y..max_y {
             let row_start = (y * self.size.width + min_x) as usize * 4;
@@ -89,6 +141,16 @@ impl AppContext {
             let row = &self.image.as_raw()[row_start..row_end];
             image_data.extend_from_slice(row);
         }
+        Some(image_data)
+    }
+
+    pub fn save_selection_to_clipboard(&self) {
+        let (width, height) = self.selection.sel_dimensions().unwrap();
+
+        let width = width.floor() as usize;
+        let height = height.floor() as usize;
+
+        let image_data = self.get_selection_data().unwrap();
 
         let mut clipboard = arboard::Clipboard::new().unwrap();
         if width * height != image_data.len() / 4 {
@@ -130,7 +192,7 @@ impl AppContext {
                 .with_window_icon(Some(Icon::from_rgba(rgba, width, height)?)),
         )?;
 
-        let graphics = Graphics::new(window, size);
+        let graphics = Graphics::new(window, size.width, size.height);
         let graphics = pollster::block_on(graphics)?;
 
         let bundle = GraphicsBundle::new(
@@ -155,20 +217,15 @@ impl AppContext {
             bundle,
             total_time: 0.0,
             last_frame: std::time::Instant::now(),
-            current_drag: None,
+            selection: UserSelection::new(),
             // window,
             graphics,
-            mouse_position: (0.0, 0.0),
-            selection: None,
+            mouse_position: DVec2::new(0.0, 0.0),
             mode: MoveMode::Resize,
         })
     }
 
-    pub fn handle_move(&mut self, dir: Direction) {
-        let Some(selection) = &mut self.selection else {
-            return;
-        };
-
+    pub fn handle_move(&mut self, dir: Direction) -> Option<()> {
         let (dx, dy) = match dir {
             Direction::Up => (0.0, -1.0),
             Direction::Down => (0.0, 1.0),
@@ -176,35 +233,35 @@ impl AppContext {
             Direction::Right => (1.0, 0.0),
         };
 
+        let selection = self.selection.selection.as_mut()?;
+
         match self.mode {
             MoveMode::Move => {
-                selection.start.0 = (selection.start.0 + dx).clamp(0.0, self.size.width as f64);
-                selection.start.1 = (selection.start.1 + dy).clamp(0.0, self.size.height as f64);
-                selection.end.0 = (selection.end.0 + dx).clamp(0.0, self.size.width as f64);
-                selection.end.1 = (selection.end.1 + dy).clamp(0.0, self.size.height as f64);
+                selection.start.x = (selection.start.x + dx).clamp(0.0, self.size.width as f32);
+                selection.start.y = (selection.start.y + dy).clamp(0.0, self.size.height as f32);
+                selection.end.x = (selection.end.x + dx).clamp(0.0, self.size.width as f32);
+                selection.end.y = (selection.end.y + dy).clamp(0.0, self.size.height as f32);
             }
             MoveMode::Resize => {
-                selection.end.0 = (selection.end.0 + dx).clamp(0.0, self.size.width as f64);
-                selection.end.1 = (selection.end.1 + dy).clamp(0.0, self.size.height as f64);
+                selection.end.x = (selection.end.x + dx).clamp(0.0, self.size.width as f32);
+                selection.end.y = (selection.end.y + dy).clamp(0.0, self.size.height as f32);
             }
             MoveMode::InverseResize => {
-                selection.start.0 = (selection.start.0 + dx).clamp(0.0, self.size.width as f64);
-                selection.start.1 = (selection.start.1 + dy).clamp(0.0, self.size.height as f64);
+                selection.start.x = (selection.start.x + dx).clamp(0.0, self.size.width as f32);
+                selection.start.y = (selection.start.y + dy).clamp(0.0, self.size.height as f32);
             }
         }
+
+        Some(())
     }
 
     pub fn draw(&mut self) {
         let time = self.last_frame.elapsed().as_secs_f32();
         self.total_time += time;
         self.last_frame = std::time::Instant::now();
-        self.bundle.update_selection(
-            self.total_time,
-            &self.graphics.queue,
-            self.current_drag.as_ref(),
-            self.selection.as_ref(),
-            Vec2::new(self.size.width as f32, self.size.height as f32),
-        );
+
+        self.update_uniforms();
+        self.bundle.update_buffer(&self.graphics.queue);
 
         let mut pass = match self.graphics.render() {
             Ok(pass) => pass,
@@ -216,6 +273,37 @@ impl AppContext {
         self.bundle.draw(&mut pass);
         pass.finish();
         self.graphics.request_redraw();
+    }
+
+    fn update_uniforms(&mut self) {
+        self.bundle.uniforms.time = self.total_time;
+        self.bundle.uniforms.screen_size.x = self.size.width as f32;
+        self.bundle.uniforms.screen_size.y = self.size.height as f32;
+
+        let drag = self.selection.drag;
+        let selection = self.selection.selection;
+        self.bundle.uniforms.is_dragging = match (drag, selection) {
+            (Some(d), Some(s)) if d.start != Vec2::ZERO || s.start != Vec2::ZERO => 3,
+            (Some(d), None) if d.start != Vec2::ZERO => 1,
+            (None, Some(s)) if s.start != Vec2::ZERO => 2,
+            _ => 0,
+        };
+
+        if let Some(drag) = drag {
+            self.bundle.uniforms.drag_start = drag.start;
+            self.bundle.uniforms.drag_end = drag.end.unwrap_or_default();
+        } else {
+            self.bundle.uniforms.drag_start = Vec2::ZERO;
+            self.bundle.uniforms.drag_end = Vec2::ZERO;
+        };
+
+        if let Some(selection) = selection {
+            self.bundle.uniforms.selection_start = selection.start;
+            self.bundle.uniforms.selection_end = selection.end;
+        } else {
+            self.bundle.uniforms.selection_start = Vec2::ZERO;
+            self.bundle.uniforms.selection_end = Vec2::ZERO;
+        };
     }
 
     pub fn window_id(&self) -> winit::window::WindowId {
@@ -232,5 +320,12 @@ impl AppContext {
 
     pub fn set_mode(&mut self, mode: MoveMode) {
         self.mode = mode
+    }
+
+    pub fn update_mouse_position(&mut self, x: f64, y: f64) {
+        self.mouse_position = DVec2::new(x, y);
+        if let Some(drag) = self.selection.drag.as_mut() {
+            drag.end = Some(self.mouse_position.as_vec2());
+        }
     }
 }

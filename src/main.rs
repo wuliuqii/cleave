@@ -7,10 +7,6 @@ use winit::{
 };
 
 mod context;
-mod graphics_bundle;
-mod graphics_impl;
-mod texture;
-mod vertex;
 use context::{AppContext, Direction, MoveMode};
 
 pub struct Drag {
@@ -96,7 +92,7 @@ impl ApplicationHandler for App {
                 context.draw();
             }
             WindowEvent::CursorMoved { position, .. } => {
-                context.update_mouse_position(position);
+                context.update_mouse_position(position.x, position.y);
             }
             WindowEvent::KeyboardInput {
                 event:
